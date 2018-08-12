@@ -1,0 +1,44 @@
+#!/bin/bash
+
+CARBON_HOST="127.0.0.1"
+CARBON_PORT="2003"
+
+if [ "$1" == "sys" ]; then 
+   system=yes 
+else
+   system=yes
+fi
+
+if [ "$2" == "webapi" ]; then 
+   webapi=yes
+else 
+   webapi=no
+fi
+
+if [ "$2" == "db" ]; then
+   dbstat=yes
+elif [ "$3" == "db" ]; then
+   dbstats=yes
+else
+   dbstats=no
+fi
+
+
+if [ "$webapi" == "yes" ]; then
+   nohup ./nginxstats $CARBON_HOST $CARBON_PORT &>/dev/null &
+fi
+
+if [ "$system" == "yes" ]; then
+   while true
+   do
+      nohup ./memstats $CARBON_HOST $CARBON_PORT &>/dev/null &
+      nohup ./loadavgstats $CARBON_HOST $CARBON_PORT &>/dev/null &
+      nohup ./cpustats $CARBON_HOST $CARBON_PORT &>/dev/null &
+      nohup ./diskiostats $CARBON_HOST $CARBON_PORT &>/dev/null &
+      nohup ./diskspacestats $CARBON_HOST $CARBON_PORT &>/dev/null &
+      if [ "$dbstats" == "yes" ]; then
+         nohup ./dbstats $CARBON_HOST $CARBON_PORT &>/dev/null &
+      fi
+      sleep 5
+   done
+fi

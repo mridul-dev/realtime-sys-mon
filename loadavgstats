@@ -1,0 +1,27 @@
+#!/bin/bash
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+METRIC_NAME_1M="server.$HOSTNAME.loadAvg.1-Min"
+METRIC_NAME_5M="server.$HOSTNAME.loadAvg.5-Min"
+METRIC_NAME_10M="server.$HOSTNAME.loadAvg.10-Min"
+
+TIMESTAMP="$(date +%s)"
+
+avg="$( cat /proc/loadavg )"
+avg_1min="$(echo $avg | awk '{print $1}')"
+avg_5min="$(echo $avg | awk '{print $2}')"
+avg_10min="$(echo $avg | awk '{print $3}')"
+
+# sending metrics for the Load Average of 1 min to the graphite over plaintext
+
+echo ${METRIC_NAME_1M} ${avg_1min} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics for the Load Average of 5 min
+
+echo ${METRIC_NAME_5M} ${avg_5min} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics for the Load Average of 10 min
+
+echo ${METRIC_NAME_10M} ${avg_10min} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}

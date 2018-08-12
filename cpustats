@@ -1,0 +1,33 @@
+#!/bin/bash
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+METRIC_NAME_SYS="server.$HOSTNAME.cpuUsage.system"
+METRIC_NAME_USER="server.$HOSTNAME.cpuUsage.user"
+METRIC_NAME_IDLE="server.$HOSTNAME.cpuUsage.idle"
+
+TIMESTAMP="$(date +%s)"
+
+
+#The cpu lines will be displayed like this
+#     user    nice   system  idle      iowait      irq   softirq  steal  guest  guest_nice
+#cpu  39701129 3825 255255905 4977448041 1564741    0      158844   0      0      0
+
+
+cpuLine="$(top -b -n 5 -d.2 | grep '%Cpu' | tail -n 1)"
+syspart="$(echo $cpuLine | awk '{print $4}')"
+userpart="$(echo $cpuLine | awk '{print $2}')"
+idlepart="$(echo $cpuLine | awk '{print $8}')"
+
+# sending metrics for the CPU system part to the graphite over plaintext
+
+echo ${METRIC_NAME_SYS} ${syspart} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics for the CPU user part 
+
+echo ${METRIC_NAME_USER} ${userpart} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics for the CPU idle part
+
+echo ${METRIC_NAME_IDLE} ${idlepart} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}

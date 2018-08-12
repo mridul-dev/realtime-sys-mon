@@ -1,0 +1,21 @@
+#!/bin/bash
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+METRIC_NAME_USED="server.$HOSTNAME.memMB.used"
+METRIC_NAME_TOTAL="server.$HOSTNAME.memMB.total"
+
+TIMESTAMP="$(date +%s)"
+
+memory="$( free -m | grep Mem )"
+mem_total="$(echo $memory | awk '{print $2}')"
+mem_used="$(echo $memory | awk '{print $3}')"
+
+# sending metrics on the Total Memory to the graphite over plaintext
+
+echo ${METRIC_NAME_TOTAL} ${mem_total} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics on the Used Memory
+
+echo ${METRIC_NAME_USED} ${mem_used} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+METRIC="server.$HOSTNAME.Diskspace."
+
+TIMESTAMP="$(date +%s)"
+
+diskstatLine="$(df -h --output=pcent,target)"
+disk_count="$(df -h --output=pcent,target | wc -l)"
+row=2
+key=""
+value=""
+while [ $row -le $disk_count ]
+do
+   key="$(echo "$diskstatLine" |awk '{print $2}' |sed -n $row,1p | sed 's/\//-/g')"
+   value="$(echo "$diskstatLine" |awk '{print $1}' |sed -n $row,1p | grep -oP '\d+(?=%)')"
+   METRIC_NAME=$METRIC$key
+   echo ${METRIC_NAME} ${value} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+   row=$((row + 1))
+done

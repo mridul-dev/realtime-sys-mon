@@ -1,0 +1,28 @@
+#!/bin/bash
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+METRIC_NAME_TPS="server.$HOSTNAME.Diskio.transreqps"
+METRIC_NAME_READ="server.$HOSTNAME.Diskio.kb_read"
+METRIC_NAME_WRITE="server.$HOSTNAME.Diskio.kb_write"
+
+TIMESTAMP="$(date +%s)"
+
+
+iostatLine="$(iostat -kyd 1 5 |grep 'sda' | tail -n 1)"
+tps="$(echo $iostatLine | awk '{print $2}')"
+kb_read="$(echo $iostatLine | awk '{print $5}')"
+kb_write="$(echo $iostatLine | awk '{print $6}')"
+
+# sending metrics tps
+echo ${METRIC_NAME_TPS} ${tps} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics kb_read
+
+echo ${METRIC_NAME_READ} ${kb_read} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+# sending metrics kb_write
+
+echo ${METRIC_NAME_WRITE} ${kb_write} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+

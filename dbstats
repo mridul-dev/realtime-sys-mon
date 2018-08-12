@@ -1,0 +1,39 @@
+#!/bin/bash
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+DB_USERNAME="enter-username"
+DB_PASS="enter-password"
+DB_NAME="enter-db-name"
+
+METRIC_NAME_THREADS_CONNECTED="server.$HOSTNAME.db.threads_connected"
+METRIC_NAME_THREADS_RUNNING="server.$HOSTNAME.db.threads_running"
+METRIC_NAME_DEADLOCKS="server.$HOSTNAME.db.deadlocks"
+METRIC_NAME_COM_INSERT="server.$HOSTNAME.db.com_insert"
+METRIC_NAME_COM_UPDATE="server.$HOSTNAME.db.com_update"
+METRIC_NAME_COM_DELETE="server.$HOSTNAME.db.com_delete"
+METRIC_NAME_SLOW="server.$HOSTNAME.db.slow"
+  
+TIMESTAMP="$(date +%s)"
+
+dbstatLine="$(mysql -u ${DB_USERNAME} -p${DB_PASS} ${DB_NAME} -e "show global status;")"
+
+threads_connected="$(echo "$dbstatLine" | grep -i threads_connected | awk '{print $2}')"
+threads_running="$(echo "$dbstatLine" | grep -i threads_running | awk '{print $2}')"
+deadlocks="$(echo "$dbstatLine" | grep -i deadlocks | awk '{print $2}')"
+Com_insert="$(echo "$dbstatLine" | grep -w Com_insert | awk '{print $2}')"
+Com_update="$(echo "$dbstatLine" | grep -w Com_update | awk '{print $2}')"
+Com_delete="$(echo "$dbstatLine" | grep -w Com_delete | awk '{print $2}')"
+slow="$(echo "$dbstatLine" | grep -i Slow_queries | awk '{print $2}')"
+
+
+# sending metrics database
+echo ${METRIC_NAME_THREADS_CONNECTED} ${threads_connected} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+echo ${METRIC_NAME_THREADS_RUNNING} ${threads_running} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+echo ${METRIC_NAME_DEADLOCKS} ${deadlocks} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+echo ${METRIC_NAME_COM_INSERT} ${Com_insert} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+echo ${METRIC_NAME_COM_UPDATE} ${Com_update} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+echo ${METRIC_NAME_COM_DELETE} ${Com_delete} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+echo ${METRIC_NAME_SLOW} ${slow} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+

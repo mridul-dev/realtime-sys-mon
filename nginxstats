@@ -1,0 +1,87 @@
+#!/bin/bash 
+
+CC_HOST=$1
+CC_PORT=$2
+HOSTNAME="$(hostname | awk -F "." '{print $1}')"
+METRIC_NAME_ACTIVE="server.$HOSTNAME.nginx.numOfActiveConn"
+METRIC_NAME_ACCEPTED="server.$HOSTNAME.nginx.numOfAcceptedConn"
+METRIC_NAME_HANDLED="server.$HOSTNAME.nginx.numOfhandledConn"
+METRIC_NAME_TOTAL_REQUESTS="server.$HOSTNAME.nginx.numOfRequests"
+METRIC_NAME_REQUESTS_PER_SECOND="server.$HOSTNAME.nginx.numOfRequestsPerSecond"
+
+TIMESTAMP="$(date +%s)"
+
+before_numOfTotalAcceptedConn=""
+before_numOfTotalhandledConn=""
+before_totalRequests=""
+
+current_numOfActiveConn=""
+current_numOfTotalAcceptedConn=""
+current_numOfTotalhandledConn=""
+current_totalRequests=""
+current_numOfRequestsPerSecond=""
+
+diff_numOfTotalAcceptedConn=""
+diff_numOfTotalhandledConn=""
+diff_totalRequests=""
+
+nginxPath='nginx_status'
+ApplicationURL='127.0.0.1'
+ 
+while true; do
+
+TIMESTAMP="$(date +%s)"
+
+for URL in ${ApplicationURL[@]};do
+   file="$URL"
+   echo "Getting Nginx Status Page of $URL"
+   curl -s $URL/$nginxPath -o $file
+   
+   # sending metrics for nginx total accepted connections to the graphite over plaintext
+   current_numOfTotalAcceptedConn=$(cat $file | grep -A 1 server | tail -1 | awk '{print $1}')
+   if [ "$before_numOfTotalAcceptedConn" == "" ]; then 
+      before_numOfTotalAcceptedConn=$current_numOfTotalAcceptedConn
+      export -n before_numOfTotalAcceptedConn
+   else
+       diff_numOfTotalAcceptedConn=$((current_numOfTotalAcceptedConn - before_numOfTotalAcceptedConn))
+       echo ${METRIC_NAME_ACCEPTED} ${diff_numOfTotalAcceptedConn} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+       before_numOfTotalAcceptedConn=$current_numOfTotalAcceptedConn
+       export -n before_numOfTotalAcceptedConn 
+   fi 
+   
+   # sending metrics for nginx total handled connections to the graphite over plaintext
+   current_numOfTotalhandledConn=$(cat $file | grep -A 1 server | tail -1 | awk '{print $2}')
+   if [ "$before_numOfTotalhandledConn" == "" ]; then
+      before_numOfTotalhandledConn=$current_numOfTotalhandledConn
+      export -n before_numOfTotalhandledConn
+   else
+      diff_numOfTotalhandledConn=$((current_numOfTotalhandledConn - before_numOfTotalhandledConn))
+      echo ${METRIC_NAME_HANDLED} ${diff_numOfTotalhandledConn} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+      before_numOfTotalhandledConn=$current_numOfTotalhandledConn
+      export -n before_numOfTotalhandledConn 
+   fi
+   
+   # sending metrics for nginx total connections to the graphite over plaintext
+   current_totalRequests=$(cat $file | grep -A 1 server | tail -1 | awk '{print $3}')
+   if [ "$before_totalRequests" == "" ]; then 
+      before_totalRequests=$current_totalRequests
+      export -n before_totalRequests
+   else
+      diff_totalRequests=$((current_totalRequests - before_totalRequests))
+      echo ${METRIC_NAME_TOTAL_REQUESTS} ${diff_totalRequests} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+      before_totalRequests=$current_totalRequests
+      export -n before_totalRequests
+   fi
+
+   # sending metrics for nginx active connections to the graphite over plaintext
+   current_numOfActiveConn=$(cat $file  | awk '/Active /' | awk '{print $3}')
+   echo ${METRIC_NAME_ACTIVE} ${current_numOfActiveConn} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+   # sending metrics for nginx RequestsPerSecond to the graphite over plaintext
+   current_numOfRequestsPerSecond=$(echo 'scale=2;'$current_totalRequests/$current_numOfTotalhandledConn | bc -l)
+   echo ${METRIC_NAME_REQUESTS_PER_SECOND} ${current_numOfRequestsPerSecond} ${TIMESTAMP} | nc ${CC_HOST} ${CC_PORT}
+
+done
+
+sleep 5
+done
